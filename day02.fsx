@@ -1,6 +1,8 @@
 open System;
 open System.Text.RegularExpressions
 
+// --- PART A ---
+
 let grabExpression = Regex "([0-9]+) ([a-z]+)"
 let gameExpression = Regex "Game ([0-9]+): (.+)"
 
@@ -66,3 +68,33 @@ let partAExample = [
 
 let lines = (IO.File.ReadAllLines "day02inp.txt")
 partA lines
+
+// --- PART B ----
+
+let setMaxTotal (total: Map<string, int>) (g: Grab) =
+    total.Change(g.Colour, (fun v ->
+        match v with
+        | Some t -> Some(max t g.Total)
+        | None -> Some(g.Total)))
+
+// retrieves the minimum of each colour
+let maximumColours (total: Map<string, int>) (grabs: seq<Grab>) =
+    (total, grabs) ||> Seq.fold setMaxTotal
+
+let maximumRounds (grabs: seq<seq<Grab>>) =
+    (Map.empty, grabs) ||> Seq.fold maximumColours
+
+let powerColours (total: Map<string, int>) =
+    total |> Map.toSeq |> Seq.map (fun (k, v) -> v) |> Seq.reduce (fun a b -> a * b)
+
+let partB (input: seq<string>) = 
+    input 
+    |> Seq.map parseGame // extract game
+    |> Seq.map (fun g -> 
+        maximumRounds g.Rounds
+        |> powerColours)
+    |> Seq.sum
+
+2286 = partB partAExample
+
+partB lines
