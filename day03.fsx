@@ -1,5 +1,7 @@
 open System
 
+// --- Part A ---
+
 type Position = {
     X: int
     Y: int
@@ -78,14 +80,11 @@ readPositions example
 |> allBetweenX (5, 7)
 |> hasSymbol
 
-// identifies if the point has a certain kind of point near it
-let isNearKind position points hasKind =
+// finds all points near position
+let near position points =
     points 
     |> allNearY position.Y
     |> allBetweenX (numberDimensions position)
-    |> hasKind
-    |> Seq.isEmpty
-    |> not
 
 let validPositions (lines: seq<string>) = 
     let positions = readPositions lines
@@ -93,7 +92,7 @@ let validPositions (lines: seq<string>) =
     positions
         |> hasNumber
         |> List.filter (fun p -> 
-            isNearKind p symbols hasSymbol
+            (near p symbols) |> Seq.isEmpty |> not
         )
 
 let partA (lines: seq<string>) =
@@ -103,3 +102,24 @@ let partA (lines: seq<string>) =
 
 let lines = (IO.File.ReadAllLines "day03inp.txt")
 partA lines
+
+// -- Part B ---
+
+let validCogs (lines: seq<string>) =
+    let positions = readPositions lines
+    let numbers = positions |> hasNumber
+    positions 
+        |> List.filter (fun p -> p.Content = "*")
+        |> List.map (fun p -> 
+            (p, near p numbers)
+        )
+        |> List.map (fun (p, ns) -> 
+            if ns.Length = 2 then
+                (ns[0].Content |> int) * (ns[1].Content |> int)
+            else
+                0)
+        |> List.sum
+
+validCogs example
+
+validCogs lines
