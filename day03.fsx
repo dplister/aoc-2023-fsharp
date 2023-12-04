@@ -123,3 +123,7 @@ let validCogs (lines: seq<string>) =
 validCogs example
 
 validCogs lines
+
+// TODO:
+// union type for position
+// store dimensions in type
