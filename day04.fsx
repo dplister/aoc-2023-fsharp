@@ -1,6 +1,8 @@
 open System
 open System.Text.RegularExpressions
 
+// --- Part A ---
+
 type Card = {
     Game: int
     Chosen: int Set
@@ -51,3 +53,44 @@ scoreCards example
 
 let lines = (IO.File.ReadAllLines "day04inp.txt")
 scoreCards lines
+
+// --- Part B ---
+
+let winCards (card: Card) =
+    let matches = Set.intersect card.Chosen card.Winning
+    if matches.IsEmpty then
+        []
+    else
+        let next = card.Game + 1
+        [next..(next + (matches.Count - 1))]
+
+let l1 = readLine example[0]
+[2;3;4;5] = winCards l1
+
+let collectTickets (cardCounts: Map<int,int>) (cards: Card list) =
+    let addToCardCounts (cc: Map<int,int>) (winnings: int list) (additional: int) =
+        (cc, winnings) ||> Seq.fold (fun c w -> c.Change(w, (fun v ->
+            match v with
+            | Some curr -> Some(curr + additional)
+            | None -> Some(1 + additional))))
+    let rec loop (cs: Card list) (cc: Map<int,int>) =
+        match cs with
+            | head :: tail -> 
+                loop tail (addToCardCounts cc (winCards head) (cc.TryFind head.Game |> Option.defaultValue 1))
+            | [] -> cc
+    loop cards cardCounts
+
+let partB (input: string seq) =
+    let tickets = 
+        input 
+        |> Seq.map readLine
+        |> Seq.toList
+    collectTickets ((Map.empty, tickets) ||> List.fold (fun m t -> m.Add(t.Game, 1))) tickets
+    |> Map.values
+    |> Seq.sum
+
+// testing example
+partB example
+
+// real data
+partB lines
