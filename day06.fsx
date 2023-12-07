@@ -1,11 +1,13 @@
 open System
 open System.Text.RegularExpressions
 
+// --- Part A ---
+
 let numberExpression = Regex "([0-9]+)"
 
 let parseNumbersFromLine input =
     numberExpression.Matches input 
-    |> Seq.map (fun i -> i.Value |> int)
+    |> Seq.map (fun i -> i.Value |> int64)
 
 let example = [
     "Time:      7  15   30"
@@ -20,36 +22,56 @@ let parseTrials (input: string list) =
 parseTrials example
 
 // determines if the combination of time and 
-let travel (holdTime: int) (time: int) (distance: int) =
+let travel (holdTime: int64) (time: int64) (distance: int64) =
     (time - holdTime) * holdTime
 
-0 = travel 0 7 9
-6 = travel 1 7 9
-10 = travel 2 7 9
-12 = travel 3 7 9
+0L = travel 0L 7L 9L
+6L = travel 1L 7L 9L
+10L = travel 2L 7L 9L
+12L = travel 3L 7L 9L
 
-let minMaxTrials ((time, distance): int * int) =
+let minMaxTrials ((time, distance): int64 * int64) =
     let findTravel = Seq.find (fun h -> (travel h time distance) > distance)
     // find the minimum to succeed
     let minHold = 
-        seq { 1..time }
+        seq { 1L..time }
         |> findTravel
     // find the maximum to succeed
     let maxHold =
-        seq { time..(-1)..1 }
+        seq { time..(-1L)..1L }
         |> findTravel
     (minHold, maxHold)
 
-(4, 11) = minMaxTrials (15, 40)
-(11, 19) = minMaxTrials (30, 200)
+(4L, 11L) = minMaxTrials (15L, 40L)
+(11L, 19L) = minMaxTrials (30L, 200L)
     
 let partA (input: string list) =
     parseTrials input
     |> Seq.map minMaxTrials
-    |> Seq.map (fun (minHold, maxHold) -> (maxHold - minHold) + 1)
+    |> Seq.map (fun (minHold, maxHold) -> (maxHold - minHold) + 1L)
     |> Seq.reduce (*)
 
 partA example
 
 let lines = (IO.File.ReadAllLines "day06inp.txt") |> List.ofSeq
 partA lines
+
+// --- Part B ---
+
+let parseSpacedNumberFromLine (input: string) =
+    numberExpression.Matches input 
+    |> Seq.map (fun m -> m.Value)
+    |> String.concat ""
+    |> int64
+
+123456L = parseSpacedNumberFromLine "12 34   56"
+
+let partB (input: string list) =
+    let time = parseSpacedNumberFromLine input[0]
+    let distance = parseSpacedNumberFromLine input[1]
+    let (minHold, maxHold) = minMaxTrials (time, distance)
+    (maxHold - minHold) + 1L
+
+partB example
+
+partB lines
