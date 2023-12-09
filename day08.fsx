@@ -24,28 +24,27 @@ let parseNavigation (lines: string list) =
         (m.Groups[1].Value, (m.Groups[2].Value, m.Groups[3].Value)))
     |> Map
 
-let navigate (nav: Map<string, (string * string)>) termCondition (steps: char list) startingLocation =
-    let rec walk (location: string) (remainingSteps: char list) (counter: int) =
+let nextLocation (nav: Map<string, (string * string)>) (steps: char array) location index =
+    if steps[index] = 'L' then 
+        (fst nav[location]) 
+    else 
+        (snd nav[location])
+
+let nextStep (steps: char array) (currentStep: int) =
+        if currentStep + 1 >= steps.Length then 0 else currentStep + 1
+
+let navigate (nav: Map<string, (string * string)>) (steps: char array) termCondition startingLocation startingIndex =
+    let rec walk (location: string) (currentStep: int) (counter: int) =
         if termCondition location then
-            (location, remainingSteps, counter)
+            (location, currentStep, counter)
         else
-            match remainingSteps with
-            | head :: tail ->
-                let next = if head = 'L' then (fst nav[location]) else (snd nav[location])
-                walk next tail (counter + 1)
-            | [] -> (location, remainingSteps, counter)
-    let rec loop (location: string) (counter: int) =
-        let (endLoc, remainingSteps, endCounter) = (walk location steps counter)
-        if termCondition endLoc then
-            (endLoc, remainingSteps, endCounter)
-        else 
-            loop endLoc endCounter
-    loop startingLocation 0
+            walk (nextLocation nav steps location currentStep) (nextStep steps currentStep) (counter + 1)
+    walk startingLocation startingIndex 0
 
 let partA (lines: string list) =
-    let steps = lines[0] |> Seq.toList
+    let steps = lines[0] |> Seq.toArray
     let nav = parseNavigation (List.skip 2 lines)
-    let (_, _, endCounter) = navigate nav (fun loc -> loc = "ZZZ") steps "AAA"
+    let (_, _, endCounter) = navigate nav steps (fun loc -> loc = "ZZZ") "AAA" 0
     endCounter
 
 2 = partA example
@@ -79,25 +78,23 @@ let rec gcd x y = if y = 0 then abs x else gcd y (x % y)
 
 let lcm x y = x * y / (gcd x y)
 
-let findCycle (nav: Map<string, string * string>) termCondition steps startingLocation =
-    let (endLoc, remainingSteps, endCounter) = navigate nav termCondition steps startingLocation
+let findCycle (nav: Map<string, string * string>) steps termCondition startingLocation =
+    let (endLoc, stepsIndex, endCounter) = navigate nav steps termCondition startingLocation 0
     // from this point, continue loop
-    let appendedSteps = 
-        List.append 
-            remainingSteps
-            (List.take (steps.Length - remainingSteps.Length) steps)
-    
+    printfn "FIRST: location: %A stepsIndex: %A counter %A" endLoc stepsIndex endCounter
+    let (finalLoc, finalIndex, finalCounter) = navigate nav steps termCondition (nextLocation nav steps endLoc stepsIndex) (nextStep steps stepsIndex)
+    printfn "SECOND: location: %A stepsIndex: %A counter %A" finalLoc finalIndex (finalCounter + 1)
+    finalCounter + 1
 
 let partB (lines: string list) =
-    let steps = lines[0] |> Seq.toList
+    let steps = lines[0] |> Seq.toArray
     let nav = parseNavigation (List.skip 2 lines)
     let cycles = 
         allPositionsEndingInA nav
         |> List.map (fun loc -> 
-            findCycle nav (fun l -> endsIn 'Z' l) steps loc
+            findCycle nav steps (fun l -> endsIn 'Z' l) loc
         )
-    cycles
-    // List.fold (fun acc v -> lcm acc v) cycles.Head cycles
+    List.fold (fun acc v -> lcm acc v) cycles.Head cycles.Tail
 
 let complexExample = [
     "LR"
@@ -117,11 +114,3 @@ partB complexExample
 partB lines
 
 // not 846203634
-
-// to implement
-let rec x = seq { 
-    yield "Hello"
-    yield "World"
-    yield! ["foo"; "bar"]
-    yield! x
-}
