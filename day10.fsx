@@ -20,20 +20,20 @@ type Pos = {
 
 let letterToDirections c =
     match c with
-    | '|' -> [ Direction.North; Direction.South ]
-    | '-' -> [ Direction.West; Direction.East ]
-    | 'L' -> [ Direction.North; Direction.East ]
-    | 'J' -> [ Direction.North; Direction.West ]
-    | '7' -> [ Direction.South; Direction.West ]
-    | 'F' -> [ Direction.South; Direction.East ]
+    | '|' -> [ North; South ]
+    | '-' -> [ West; East ]
+    | 'L' -> [ North; East ]
+    | 'J' -> [ North; West ]
+    | '7' -> [ South; West ]
+    | 'F' -> [ South; East ]
     | _ -> []
 
 let inverseDirection dir =
     match dir with
-    | Direction.West -> Direction.East
-    | Direction.East -> Direction.West
-    | Direction.South -> Direction.North
-    | Direction.North -> Direction.South
+    | West -> East
+    | East -> West
+    | South -> North
+    | North -> South
 
 let createPos x y c = 
     { 
@@ -49,42 +49,42 @@ let parseMap (input: string list) =
     (arr, [0..(input.Length - 1)], input) |||> Seq.fold2 (fun a y l -> 
         let lineArr = l |> Seq.toArray
         for x in 0 .. (l.Length - 1) do
-            a[y, x] <- createPos y x lineArr[x]
+            a[y, x] <- createPos x y lineArr[x]
         a
     )
 
 let printArray accessor (overview: Pos array2d) =
     let width = (Array2D.length2 overview) - 1
-    overview |> Array2D.iteri (fun y x v -> 
-        printf "%A" (accessor v)
+    overview |> Array2D.iteri (fun _ x v -> 
+        printf "%4s" (accessor v)
         if x = width then 
             printf "\n"
     )
 
 parseMap example
-|> printArray (fun v -> v.Tile)
+|> printArray (fun v -> v.Tile |> string)
 
 let getDirection (overview: Pos array2d) y x dir =
     match dir with 
-    | Direction.North -> 
+    | North -> 
         let ny = y - 1
         if ny < 0 then 
             None
         else 
             Some(overview[ny, x])
-    | Direction.South ->
+    | South ->
         let ny = y + 1
         if ny >= (overview |> Array2D.length1) then
             None
         else
             Some(overview[ny, x])
-    | Direction.West ->
+    | West ->
         let nx = x - 1
         if nx < 0 then
             None
         else
             Some(overview[y, nx])
-    | Direction.East ->
+    | East ->
         let nx = x + 1
         if nx >= (overview |> Array2D.length2) then
             None
@@ -113,7 +113,7 @@ parseMap example
 |> findItem (fun p -> p.Tile = 'S')
 
 let findConnectionsToItem (overview: Pos array2d) (item: Pos) =
-    getAdjacent overview item.Y item.X [Direction.North;Direction.South;Direction.East;Direction.West]
+    getAdjacent overview item.Y item.X [North;South;East;West]
     // from all directions, work out which point back to the start
     |> List.choose (fun (d, p) -> 
         let invDir = (inverseDirection d)
@@ -123,8 +123,49 @@ let findConnectionsToItem (overview: Pos array2d) (item: Pos) =
         | None -> None
     )
 
-let partA (input: string list) =
-    let overview = parseMap example
+let connectStart (overview: Pos array2d) =
     let item = findItem (fun p -> p.Tile = 'S') overview
     let dirs = findConnectionsToItem overview item
     item.Directions <- dirs
+    item
+
+let navigate (overview: Pos array2d) (start: Pos) =
+    let rec loop (ps: Pos list) (counter: int) =
+        let next = 
+            ps
+            |> List.map (fun p -> 
+                getAdjacent overview p.Y p.X p.Directions 
+                |> List.filter (fun (d, a) -> a.Score = -1))
+            |> List.reduce List.append
+            |> List.map (fun (_, a) -> a)
+        if next.Length = 0 then 
+            ps.Head
+        else
+            next |> List.iter (fun a -> a.Score <- counter)
+            loop next (counter + 1)
+    start.Score <- 0
+    loop [start] 1
+
+let partA (input: string list) =
+    let overview = parseMap input
+    let start = connectStart overview
+    // printArray (fun a -> a.Tile) overview
+    // getAdjacent overview start.Y start.X start.Directions
+    let result = navigate overview start
+    // printArray (fun a -> if a.Score < 0 then "." else a.Score |> string) overview
+    result
+
+partA example
+
+let complexExample = [
+    "..F7."
+    ".FJ|."
+    "SJ.L7"
+    "|F--J"
+    "LJ..."
+]
+
+partA complexExample
+
+let lines = (IO.File.ReadAllLines "day10inp.txt") |> List.ofSeq
+partA lines
