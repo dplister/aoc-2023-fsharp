@@ -176,6 +176,27 @@ let lines = (IO.File.ReadAllLines "day10inp.txt") |> List.ofSeq
 
 // --- Part B ---
 
+let hasDirection (pos: Pos) dir =
+    pos.Directions |> List.exists (fun d -> d = dir)
+
+let getVerticalConnection (overview: Pos array2d) y x =
+    if hasDirection overview[y,x] South
+        && ((y + 1) >= (overview |> Array2D.length1)
+            || hasDirection overview[y + 1, x] North)
+        then
+            '|'
+        else
+            '.'
+
+let getHorizontalConnection (overview: Pos array2d) y x =
+    if hasDirection overview[y,x] East 
+        && ((x + 1) >= (overview |> Array2D.length2)
+            || hasDirection overview[y, x + 1] West)
+        then
+            '-'
+        else
+            '.'
+
 let extendMap (overview: Pos array2d) =
     let oy = (overview |> Array2D.length1)
     let ox = (overview |> Array2D.length2)
@@ -196,9 +217,9 @@ let extendMap (overview: Pos array2d) =
             arr[cy, cx] <- overview[y,x]
             // provide cell underneath
             if ny < (my - 1) then 
-                arr[ny, cx] <- { (createPos cx ny (if overview[y,x].Directions |> List.exists (fun d -> d = South) then '|' else '.')) with IsExtension = true }
+                arr[ny, cx] <- { (createPos cx ny (getVerticalConnection overview y x)) with IsExtension = true }
             // provide cell to the right
-            arr[cy, nx] <- { (createPos nx y (if overview[y,x].Directions |> List.exists (fun d -> d = East) then '-' else '.')) with IsExtension = true }
+            arr[cy, nx] <- { (createPos nx y (getHorizontalConnection overview y x)) with IsExtension = true }
             // compensate for the diagonal to the bottom right (which is always empty)
             if ny < (my - 1) && nx < (mx - 1) then
                 arr[ny, nx] <- { (createPos nx ny '.') with IsExtension = true }
@@ -207,8 +228,25 @@ let extendMap (overview: Pos array2d) =
         cx <- 0
     arr
 
-let floodArea (overview: Pos array2d) y x group =
-    ()
+let floodArea (overview: Pos array2d) (pos: Pos) group =
+    if pos.X = 0 && pos.Y = 0 then
+        printfn "%A" (getAdjacent overview 2 0 [North;South;East;West])
+    let rec loop (positions: Pos list) =
+        positions |> List.iter (fun p -> p.Score <- group)
+        let next = 
+            positions
+            |> List.map (fun p ->
+                getAdjacent overview p.Y p.X [North;South;East;West] 
+                |> List.map (fun (_, np) -> np)
+                |> List.filter (fun np -> np.Score = -1 && np.Tile = '.')
+            )
+            |> List.reduce List.append
+        // printfn "%A" next
+        if next.Length > 0 then 
+            loop next
+        else
+            ()
+    loop [pos]
 
 let floodAreas (overview: Pos array2d) =
     // search through all areas and flood them
@@ -218,7 +256,7 @@ let floodAreas (overview: Pos array2d) =
     for y in 0 .. my do
         for x in 0 .. mx do 
             if overview[y,x].Tile = '.' && overview[y,x].Score = -1 then 
-                floodArea overview y x group
+                floodArea overview overview[y,x] group
                 group <- group + 1
     ()
 
@@ -228,7 +266,8 @@ let partB (input: string list) =
     let dirs = findConnectionsToItem overview item
     item.Directions <- dirs
     let extended = overview |> extendMap
-    printArray (fun p -> p.Tile |> string) extended
+    floodAreas extended
+    printArray (fun p -> if p.Score > -1 then p.Score |> string else p.Tile |> string) extended
     
 partB example
 
