@@ -207,6 +207,21 @@ let extendMap (overview: Pos array2d) =
         cx <- 0
     arr
 
+let floodArea (overview: Pos array2d) y x group =
+    ()
+
+let floodAreas (overview: Pos array2d) =
+    // search through all areas and flood them
+    let my = (overview |> Array2D.length1) - 1
+    let mx = (overview |> Array2D.length2) - 1
+    let mutable group = 1
+    for y in 0 .. my do
+        for x in 0 .. mx do 
+            if overview[y,x].Tile = '.' && overview[y,x].Score = -1 then 
+                floodArea overview y x group
+                group <- group + 1
+    ()
+
 let partB (input: string list) =
     let overview = parseMap input
     let item = findItem (fun p -> p.Tile = 'S') overview
