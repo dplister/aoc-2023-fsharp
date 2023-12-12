@@ -1,5 +1,7 @@
 open System
 
+// --- Part A ---
+
 let example = [
     "....."
     ".S-7."
@@ -16,6 +18,7 @@ type Pos = {
     Tile: char
     mutable Directions: Direction list
     mutable Score: int
+    IsExtension: bool
 }
 
 let letterToDirections c =
@@ -42,6 +45,7 @@ let createPos x y c =
         Tile = c
         Directions = letterToDirections c
         Score = -1
+        IsExtension = false
     }
 
 let parseMap (input: string list) = 
@@ -128,3 +132,60 @@ let partA (input: string list) =
     let item = findItem (fun p -> p.Tile = 'S') overview
     let dirs = findConnectionsToItem overview item
     item.Directions <- dirs
+
+// --- Part B ---
+
+let extendMap (overview: Pos array2d) =
+    let oy = (overview |> Array2D.length1)
+    let ox = (overview |> Array2D.length2)
+    let my = oy * 2 - 1
+    let mx = ox * 2 - 1
+    let arr = 
+        Array2D.create 
+            my
+            mx
+            (createPos 0 0 '.')
+    // for each row, extend below
+    let mutable cx = 0
+    let mutable cy = 0
+    for y in 0 .. (oy - 1) do
+        for x in 0 .. (ox - 2) do
+            let nx = cx + 1
+            let ny = cy + 1
+            arr[cy, cx] <- overview[y,x]
+            // provide cell underneath
+            if ny < (my - 1) then 
+                arr[ny, cx] <- { (createPos cx ny (if overview[y,x].Directions |> List.exists (fun d -> d = South) then '|' else '.')) with IsExtension = true }
+            // provide cell to the right
+            arr[cy, nx] <- { (createPos nx y (if overview[y,x].Directions |> List.exists (fun d -> d = East) then '-' else '.')) with IsExtension = true }
+            // compensate for the diagonal to the bottom right (which is always empty)
+            if ny < (my - 1) && nx < (mx - 1) then
+                arr[ny, nx] <- { (createPos nx ny '.') with IsExtension = true }
+            cx <- cx + 2
+        cy <- cy + 2
+        cx <- 0
+    arr
+
+let partB (input: string list) =
+    let overview = parseMap input
+    let item = findItem (fun p -> p.Tile = 'S') overview
+    let dirs = findConnectionsToItem overview item
+    item.Directions <- dirs
+    let extended = overview |> extendMap
+    printArray (fun p -> p.Tile) extended
+    
+partB example
+
+let pipeExample = [
+    ".........."
+    ".S------7."
+    ".|F----7|."
+    ".||....||."
+    ".||....||."
+    ".|L-7F-J|."
+    ".|..||..|."
+    ".L--JL--J."
+    ".........."
+]
+
+partB pipeExample
