@@ -65,8 +65,8 @@ let printArray accessor (overview: Pos array2d) =
             printf "\n"
     )
 
-parseMap example
-|> printArray (fun v -> v.Tile |> string)
+// parseMap example
+// |> printArray (fun v -> v.Tile |> string)
 
 let getDirection (overview: Pos array2d) y x dir =
     match dir with 
@@ -159,7 +159,7 @@ let partA (input: string list) =
     // printArray (fun a -> if a.Score < 0 then "." else a.Score |> string) overview
     result
 
-partA example
+// partA example
 
 let complexExample = [
     "..F7."
@@ -169,7 +169,7 @@ let complexExample = [
     "LJ..."
 ]
 
-partA complexExample
+// partA complexExample
 
 let lines = (IO.File.ReadAllLines "day10inp.txt") |> List.ofSeq
 // partA lines
@@ -211,17 +211,18 @@ let extendMap (overview: Pos array2d) =
     let mutable cx = 0
     let mutable cy = 0
     for y in 0 .. (oy - 1) do
-        for x in 0 .. (ox - 2) do
+        for x in 0 .. (ox - 1) do
             let nx = cx + 1
             let ny = cy + 1
-            arr[cy, cx] <- overview[y,x]
+            arr[cy, cx] <- { overview[y,x] with X = cx; Y = cy }
             // provide cell underneath
             if ny < (my - 1) then 
                 arr[ny, cx] <- { (createPos cx ny (getVerticalConnection overview y x)) with IsExtension = true }
             // provide cell to the right
-            arr[cy, nx] <- { (createPos nx y (getHorizontalConnection overview y x)) with IsExtension = true }
+            if nx < mx then 
+                arr[cy, nx] <- { (createPos nx cy (getHorizontalConnection overview y x)) with IsExtension = true }
             // compensate for the diagonal to the bottom right (which is always empty)
-            if ny < (my - 1) && nx < (mx - 1) then
+            if ny < my && nx < mx then
                 arr[ny, nx] <- { (createPos nx ny '.') with IsExtension = true }
             cx <- cx + 2
         cy <- cy + 2
@@ -229,8 +230,6 @@ let extendMap (overview: Pos array2d) =
     arr
 
 let floodArea (overview: Pos array2d) (pos: Pos) group =
-    if pos.X = 0 && pos.Y = 0 then
-        printfn "%A" (getAdjacent overview 2 0 [North;South;East;West])
     let rec loop (positions: Pos list) =
         positions |> List.iter (fun p -> p.Score <- group)
         let next = 
@@ -241,24 +240,64 @@ let floodArea (overview: Pos array2d) (pos: Pos) group =
                 |> List.filter (fun np -> np.Score = -1 && np.Tile = '.')
             )
             |> List.reduce List.append
-        // printfn "%A" next
         if next.Length > 0 then 
             loop next
         else
             ()
     loop [pos]
 
-let floodAreas (overview: Pos array2d) =
-    // search through all areas and flood them
+let foldArray (overview: Pos array2d) accumulator =
     let my = (overview |> Array2D.length1) - 1
     let mx = (overview |> Array2D.length2) - 1
-    let mutable group = 1
+    let mutable acc = List.empty
     for y in 0 .. my do
         for x in 0 .. mx do 
-            if overview[y,x].Tile = '.' && overview[y,x].Score = -1 then 
-                floodArea overview overview[y,x] group
-                group <- group + 1
-    ()
+            match accumulator acc overview[y,x] with
+            | Some v -> acc <- v :: acc
+            | None -> ()
+    List.rev acc
+
+let floodAreas (overview: Pos array2d) =
+    // search through all areas and flood them
+    let mutable group = 1
+    let groups = foldArray overview (fun acc p -> 
+        if p.Tile = '.' && p.Score = -1 then 
+            floodArea overview p group
+            group <- group + 1
+            Some(group - 1)
+        else
+            None
+    )
+    groups
+
+let flattenArray (overview: Pos array2d) =
+    let y = Array2D.length1 overview
+    let x = Array2D.length2 overview
+    Array.init (y * x) (fun i -> overview.[i / x, i % x])
+
+parseMap example 
+|> flattenArray
+|> Array.map (fun p -> p.Tile)
+
+// finds the first area that does not touch the outer walls
+let findBiggestEnclosure (overview: Pos array2d) (groups: int list) =
+    let my = overview |> Array2D.length1 |> (-) 1
+    let mx = overview |> Array2D.length2 |> (-) 1
+    let items = overview |> flattenArray
+    ((0,0), groups) ||> Seq.fold (fun (tg, tn) g ->
+        // find all elements for group 
+        let tiles = items |> Array.filter (fun p -> p.Score = g)
+        // if they don't touch the edge anywhere
+        if not (tiles |> Array.exists (fun p -> p.X = 0 || p.X = mx || p.Y = 0 || p.Y = my)) then
+            // count number that aren't fakes
+            let reals = tiles |> Array.filter (fun p -> not p.IsExtension)
+            if reals.Length > tn then
+                (g, reals.Length)
+            else 
+                (tg, tn)
+        else
+            (tg, tn)
+    )
 
 let partB (input: string list) =
     let overview = parseMap input
@@ -266,10 +305,14 @@ let partB (input: string list) =
     let dirs = findConnectionsToItem overview item
     item.Directions <- dirs
     let extended = overview |> extendMap
-    floodAreas extended
+    // printArray (fun p -> p.Y |> string) extended
+    let (tg, tn) = 
+        floodAreas extended
+        |> findBiggestEnclosure extended
     printArray (fun p -> if p.Score > -1 then p.Score |> string else p.Tile |> string) extended
+    printfn "Group: %A Total: %A" tg tn
     
-partB example
+// partB example
 
 let pipeExample = [
     ".........."
@@ -283,4 +326,34 @@ let pipeExample = [
     ".........."
 ]
 
-partB pipeExample
+// partB pipeExample
+
+let largerExample = [
+    ".F----7F7F7F7F-7...."
+    ".|F--7||||||||FJ...."
+    ".||.FJ||||||||L7...."
+    "FJL7L7LJLJ||LJ.L-7.."
+    "L--J.L7...LJS7F-7L7."
+    "....F-J..F7FJ|L7L7L7"
+    "....L7.F7||L7|.L7L7|"
+    ".....|FJLJ|FJ|F7|.LJ"
+    "....FJL-7.||.||||..."
+    "....L---J.LJ.LJLJ..."
+]
+
+// partB largerExample
+
+let disconnectedExample = [
+    "FF7FSF7F7F7F7F7F---7"
+    "L|LJ||||||||||||F--J"
+    "FL-7LJLJ||||||LJL-77"
+    "F--JF--7||LJLJ7F7FJ-"
+    "L---JF-JLJ.||-FJLJJ7"
+    "|F|F-JF---7F7-L7L|7|"
+    "|FFJF7L7F-JF7|JL---7"
+    "7-L-JL7||F7|L7F-7F7|"
+    "L.L7LFJ|||||FJL7||LJ"
+    "L7JLJL-JLJLJL--JLJ.L"
+]
+
+partB disconnectedExample
