@@ -15,10 +15,11 @@ type Direction = West | East | North | South
 type Pos = {
     X: int
     Y: int
-    Tile: char
+    mutable Tile: char
     mutable Directions: Direction list
     mutable Score: int
     IsExtension: bool
+    mutable IsLoop: bool
 }
 
 let letterToDirections c =
@@ -46,6 +47,7 @@ let createPos x y c =
         Directions = letterToDirections c
         Score = -1
         IsExtension = false
+        IsLoop = false
     }
 
 let parseMap (input: string list) = 
@@ -299,17 +301,37 @@ let findBiggestEnclosure (overview: Pos array2d) (groups: int list) =
             (tg, tn)
     )
 
+// identifies all pos that are part of the loop
+let markLoop (overview: Pos array2d) (start: Pos) =
+    let rec exploreLoop (pos: Pos) =
+        pos.IsLoop <- true
+        getAdjacent overview pos.Y pos.X pos.Directions
+        |> Seq.filter (fun (_, p) -> not p.IsLoop)
+        |> Seq.iter (fun (_, p) -> exploreLoop p)
+    exploreLoop start
+
+let removeNonLoopItems (overview: Pos array2d) =
+    foldArray overview (fun _ (p: Pos) ->
+        if not p.IsLoop && not (p.Tile = '.') then
+            p.Tile <- '.'
+            p.Directions <- []
+        None
+    ) |> ignore
+    ()
+
 let partB (input: string list) =
     let overview = parseMap input
     let item = findItem (fun p -> p.Tile = 'S') overview
     let dirs = findConnectionsToItem overview item
     item.Directions <- dirs
+    markLoop overview item
+    removeNonLoopItems overview
+    // printArray (fun p -> if p.Score > -1 then p.Score |> string else p.Tile |> string) overview
     let extended = overview |> extendMap
-    // printArray (fun p -> p.Y |> string) extended
     let (tg, tn) = 
-        floodAreas extended
-        |> findBiggestEnclosure extended
-    printArray (fun p -> if p.Score > -1 then p.Score |> string else p.Tile |> string) extended
+         floodAreas extended
+         |> findBiggestEnclosure extended
+    // printArray (fun p -> if p.Score > -1 then p.Score |> string else p.Tile |> string) extended
     printfn "Group: %A Total: %A" tg tn
     
 // partB example
@@ -356,4 +378,6 @@ let disconnectedExample = [
     "L7JLJL-JLJLJL--JLJ.L"
 ]
 
-partB disconnectedExample
+// partB disconnectedExample
+
+partB lines
