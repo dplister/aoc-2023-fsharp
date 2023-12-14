@@ -1,8 +1,10 @@
 open System
 
+// --- Part A ---
+
 type Pos = {
-    X: int
-    Y: int
+    X: int64
+    Y: int64
 }
 
 let parseGalaxy (input: string list) =
@@ -31,32 +33,33 @@ let example = [
 
 parseGalaxy example
 
-let getGaps (nums: int list) =
+let getGaps (nums: int64 list) =
     let nums = nums |> List.distinct |> List.sort
-    let rec loop (prev: int) (ls: int list) (acc: int list) =
+    let rec loop (prev: int64) (ls: int64 list) (acc: int64 list) =
         match ls with
         | head :: tail -> 
             if head - prev > 1 then 
-                loop head tail (List.append acc [(prev + 1)..(head - 1)])
+                loop head tail (List.append acc [(prev + 1L)..(head - 1L)])
             else
                 loop head tail acc
         | [] -> acc
-    loop nums[0] nums [0..(nums[0] - 1)]
+    loop nums[0] nums [0..(nums[0] - 1L)]
 
-getGaps [1;3;7]
-getGaps [2;3;7]
+getGaps [1L;3L;7L]
+getGaps [2L;3L;7L]
 
-let padGaps (ps: Pos list) =
+let padGaps (multiplier: int64) (ps: Pos list) =
     let xgaps = ps |> List.map (fun p -> p.X) |> getGaps
     let ygaps = ps |> List.map (fun p -> p.Y) |> getGaps
+    let multiplier = if multiplier > 1 then multiplier - 1L else multiplier
     ps |> List.map (fun p -> 
     { 
-        X = p.X + (xgaps |> List.filter (fun xg -> xg < p.X) |> List.length)
-        Y = p.Y + (ygaps |> List.filter (fun yg -> yg < p.Y) |> List.length)
+        X = p.X + ((xgaps |> List.filter (fun xg -> xg < p.X) |> List.length |> int64) * multiplier)
+        Y = p.Y + ((ygaps |> List.filter (fun yg -> yg < p.Y) |> List.length |> int64) * multiplier)
     })
 
 parseGalaxy example
-|> padGaps
+|> padGaps 1
 
 // generates unique pairs from list
 let pairs ls =
@@ -84,19 +87,14 @@ let closerOne p t =
         p
 
 let distanceBetween p1 p2 = 
-    let rec loop x y alt counter =
-        if x = p2.X && y = p2.Y then
-            counter
-        else if (alt = X && x <> p2.X) || (alt = Y && y = p2.Y) then 
-            loop (closerOne x p2.X) y Y (counter + 1)
-        else 
-            loop x (closerOne y p2.Y) X (counter + 1)
-    loop p1.X p1.Y X 0
+    let minX, maxX = min p1.X p2.X, max p1.X p2.X
+    let minY, maxY = min p1.Y p2.Y, max p1.Y p2.Y
+    (maxX - minX) + (maxY - minY)
 
-9 = distanceBetween { X = 1; Y = 6 } { X = 5; Y = 11 }
-15 = distanceBetween { X = 4; Y = 0 } { X = 9; Y = 10 }
-17 = distanceBetween { X = 0; Y = 2 } { X = 12; Y = 7 }
-5 = distanceBetween { X = 0; Y = 11 } { X = 5; Y = 11 }
+9L = distanceBetween { X = 1; Y = 6 } { X = 5; Y = 11 }
+15L = distanceBetween { X = 4; Y = 0 } { X = 9; Y = 10 }
+17L = distanceBetween { X = 0; Y = 2 } { X = 12; Y = 7 }
+5L = distanceBetween { X = 0; Y = 11 } { X = 5; Y = 11 }
 
 let calculateDistances (ps: Pos list list) =
     ps |> List.map (fun pp -> (pp, (distanceBetween pp[0] pp[1])))
@@ -104,12 +102,24 @@ let calculateDistances (ps: Pos list list) =
 let partA (lines: string list) =
     lines
     |> parseGalaxy
-    |> padGaps
+    |> padGaps 1
     |> pairs
     |> calculateDistances
     |> List.sumBy (fun (_, d) -> d)
 
-// partA example
+partA example
 
 let lines = (IO.File.ReadAllLines "day11inp.txt") |> List.ofSeq
 partA lines
+
+// --- Part B ---
+
+let partB multiplier (lines: string list) =
+    lines
+    |> parseGalaxy
+    |> padGaps multiplier
+    |> pairs
+    |> calculateDistances
+    |> List.sumBy (fun (_, d) -> d)
+
+printfn "Part B: %A" (partB 1000000L lines)
