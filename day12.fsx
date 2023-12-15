@@ -39,3 +39,6 @@ let example = [
 ]
 
 parseLine example[0]
+
+let nav (spring: Spring) =
+    let loop (line: char array) (
