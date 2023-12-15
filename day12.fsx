@@ -27,24 +27,47 @@ let example = [
 
 parseLine example[0]
 
-let possibleChars (c: char) =
-    c = '#' || c = '?'
+let isPossiblyValid (nums: int list) (input: char list) =
+    let rec loop (ns: int list) (cs: char list) (count: int) =
+        match cs with 
+        | head :: tail when head = '#' ->
+            loop ns tail (count + 1)
+        | head :: tail when head = '.' ->
+            if count > 0 then 
+                // we keep finding more broken after numbers ran out
+                if ns.Length = 0 then
+                    false
+                else if ns[0] = count then
+                    loop ns.Tail tail 0
+                // number must not match
+                else
+                    false
+            else
+                loop ns tail 0
+        // we can't be certain, bail out
+        | head :: _ when head = '?' ->
+            true
+        // ran out of chars; what we have so far worked
+        | _ -> true
+    loop nums (input |> List.rev) 0
+
+true = isPossiblyValid [1;2;3] ("#.##.???" |> List.ofSeq |> List.rev)
+false = isPossiblyValid [1;2;3] ("#..#.???" |> List.ofSeq |> List.rev)
+true = isPossiblyValid [1;1;3] ("#..#.???" |> List.ofSeq |> List.rev)
+true = isPossiblyValid [1;1;3] ("#..#.###" |> List.ofSeq |> List.rev)
 
 /// generates the set of path permutations that can _possibly_ fit the group list
 let generatePathPermutations (nums: int list) (input: char list) =
-    let totalExpected = nums |> List.sum
-    let countPossibleChars (cs: char seq) = cs |> Seq.filter possibleChars |> Seq.length
     let rec loop (lines: char list list) (tokens: char list) =
         match tokens with 
         | head :: tail when head = '.' || head = '#' -> 
             loop (lines |> List.map (fun l -> head :: l)) tail
         | _ :: tail ->
-            let availableLeft = countPossibleChars tail
             let merged = 
                 List.append 
                     (lines |> List.map (fun l -> '#' :: l))
                     (lines |> List.map (fun l -> '.' :: l))
-                |> List.filter (fun l -> (countPossibleChars l) + availableLeft >= totalExpected)
+                |> List.filter (fun l -> isPossiblyValid nums l)
             loop merged tail
         | [] -> lines |> List.map (fun l -> List.rev l |> String.Concat)
     loop [[]] input
@@ -97,7 +120,7 @@ let partA (input: string list) =
 partA example
 
 let lines = (IO.File.ReadAllLines "day12inp.txt") |> List.ofSeq
-partA lines
+// partA lines
 
 // --- Part B ---
 
@@ -124,4 +147,5 @@ let partB (input: string list) =
     )
     |> List.sum
 
-partB example
+// printfn "%A" (partB example)
+printfn "%A" (partB lines)
