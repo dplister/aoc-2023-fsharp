@@ -130,7 +130,7 @@ let unfoldLine (path: char list) (nums: int list) =
             ||> List.map2 (fun i p -> if i = 0 then p else '?' :: p) 
             |> List.concat
     (
-        longerLine,
+        longerLine, // pad the line
         List.replicate 5 nums |> List.concat
     )
 
@@ -139,13 +139,49 @@ unfoldLine ['.';'#'] [1]
     (p |> String.Concat) = ".#?.#?.#?.#?.#"
     && (ns = [1;1;1;1;1]))
 
+
+// cribbed from https://advent-of-code.xavd.id/writeups/2023/day/12/ 
+// about the only solution that isn't a set of index hieroglyphics
+let solve (path: char list) (groups: int list) =
+    let mutable cache = Map.empty
+    let rec validSolutions (path: char list) (groups: int list) =
+        let key = $"{path |> Array.ofList |> String} {String.Join(',', groups |> List.map string)}"
+        match cache.TryFind key with
+        | Some v -> v
+        | None -> 
+            let res =
+                match path, groups with
+                | [], [] -> 1L
+                | [], gs -> 0L
+                | ps, [] -> if ps |> List.exists (fun c -> c = '#') then 0L else 1L
+                | phead :: ptail, _ when phead = '.' -> 
+                    validSolutions ptail groups
+                | phead :: _, ghead :: gtail when phead = '#' ->
+                    if path.Length >= ghead 
+                        && path |> List.take ghead |> List.forall (fun c -> c <> '.')
+                        && (path.Length = ghead || path.[ghead] <> '#') then
+                        let availableSkip = if path.Length < (ghead + 1) then path.Length else (ghead + 1)
+                        validSolutions (path |> List.skip availableSkip) gtail
+                    else
+                        0
+                | phead :: ptail, _ when phead = '?' ->
+                    validSolutions ('#' :: ptail) groups
+                    + validSolutions ('.' :: ptail) groups
+            cache <- cache.Add(key, res)
+            res
+    validSolutions path groups
+
+solve ("???.###" |> List.ofSeq) [1;1;3]
+solve (".??..??...?##." |> List.ofSeq) [1;1;3]
+
 let partB (input: string list) =
     input
     |> List.map (fun l ->
         let path, nums = parseLine l ||> unfoldLine
-        (allSolutions nums path).Length
+        solve path nums
     )
     |> List.sum
 
 // printfn "%A" (partB example)
+
 printfn "%A" (partB lines)
