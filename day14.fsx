@@ -1,5 +1,7 @@
 open System
 
+// --- Part A ---
+
 let example = [
     "O....#...."
     "O.OO#....#"
@@ -114,3 +116,32 @@ partA example
 
 let lines = (IO.File.ReadAllLines "day14inp.txt") |> List.ofSeq
 partA lines
+
+// --- Part B ---
+
+let shiftItemsAxis primaryAxis secondaryAxis secondaryAxisUpdate (items: Item list) =
+    let maxAxis = maxItem items primaryAxis
+    let rec loop (n: int) =
+        if n >= 0 && n <= maxAxis then 
+            let matchingSet = items |> List.filter (fun p -> primaryAxis p = n)
+            let rec inner (sax: int) (cls: Item list) =
+                match cls with 
+                | head :: tail -> 
+                    if head.Movable = Movable then 
+                        secondaryAxisUpdate head sax
+                        inner (sax + 1) tail
+                    else 
+                        inner (secondaryAxis head + 1) tail
+                | [] -> ()
+            inner 0 matchingSet
+            loop (n + 1)
+    loop 0
+    items
+
+let partB (input: string list) = 
+    input
+    |> parseItems
+    |> shiftItemsAxis (fun p -> p.Pos.X) (fun p -> p.Pos.Y) (fun p v -> p.Pos.Y <- v)
+    |> drawItems
+
+partB example
