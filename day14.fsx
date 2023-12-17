@@ -92,10 +92,10 @@ let drawItems (items: Item list) =
                 printf "\n"
     items
 
-example
-|> parseItems
-|> shiftItems
-|> drawItems 
+// example
+// |> parseItems
+// |> shiftItems
+// |> drawItems 
 
 /// Measures the amount of weight of each item by distance from bottom
 /// <Remarks> Achieves this by inverting the Y axis </Remarks>
@@ -112,36 +112,68 @@ let partA (input: string list) =
     |> drawItems
     |> scoreWeight
 
-partA example
+// partA example
 
 let lines = (IO.File.ReadAllLines "day14inp.txt") |> List.ofSeq
-partA lines
+// partA lines
 
 // --- Part B ---
 
-let shiftItemsAxis primaryAxis secondaryAxis secondaryAxisUpdate (items: Item list) =
+let shiftItemsAxis primaryAxis secondaryAxis secondaryAxisUpdate starting increment (items: Item list) =
     let maxAxis = maxItem items primaryAxis
+    let startingValue = (starting 0 maxAxis)
     let rec loop (n: int) =
-        if n >= 0 && n <= maxAxis then 
-            let matchingSet = items |> List.filter (fun p -> primaryAxis p = n)
+        if n <= maxAxis then 
+            let matchingSet = items |> List.filter (fun p -> primaryAxis p = n) 
+            let orderedSet = 
+                if startingValue = 0 then 
+                    matchingSet |> List.sortBy (fun p -> secondaryAxis p)
+                else
+                    matchingSet |> List.sortByDescending (fun p -> secondaryAxis p)
             let rec inner (sax: int) (cls: Item list) =
                 match cls with 
                 | head :: tail -> 
                     if head.Movable = Movable then 
                         secondaryAxisUpdate head sax
-                        inner (sax + 1) tail
+                        inner (increment sax) tail
                     else 
-                        inner (secondaryAxis head + 1) tail
+                        inner (increment (secondaryAxis head)) tail
                 | [] -> ()
-            inner 0 matchingSet
+            inner startingValue orderedSet
             loop (n + 1)
     loop 0
     items
 
+let shiftNorth (items: Item list) =
+    items |> shiftItemsAxis (fun p -> p.Pos.X) (fun p -> p.Pos.Y) (fun p v -> p.Pos.Y <- v) (fun mn _ -> mn) (fun v -> v + 1)
+
+let shiftSouth (items: Item list) =
+    items |> shiftItemsAxis (fun p -> p.Pos.X) (fun p -> p.Pos.Y) (fun p v -> p.Pos.Y <- v) (fun _ mx -> mx) (fun v -> v - 1)
+
+let shiftWest (items: Item list) =
+    items |> shiftItemsAxis (fun p -> p.Pos.Y) (fun p -> p.Pos.X) (fun p v -> p.Pos.X <- v) (fun mn _ -> mn) (fun v -> v + 1)
+
+let shiftEast (items: Item list) =
+    items |> shiftItemsAxis (fun p -> p.Pos.Y) (fun p -> p.Pos.X) (fun p v -> p.Pos.X <- v) (fun _ mx -> mx) (fun v -> v - 1)
+
+let rotate (items: Item list) =
+    items
+    |> shiftNorth
+    |> shiftWest
+    |> shiftSouth
+    |> shiftEast
+
+let rec rotations (n: int) (items: Item list) =
+    if n = 0 then 
+        items
+    else 
+        rotations (n - 1) (rotate items)
+
 let partB (input: string list) = 
     input
     |> parseItems
-    |> shiftItemsAxis (fun p -> p.Pos.X) (fun p -> p.Pos.Y) (fun p v -> p.Pos.Y <- v)
+    |> rotations 1000000000
     |> drawItems
+    |> scoreWeight
 
 partB example
